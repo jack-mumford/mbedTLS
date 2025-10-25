@@ -22,8 +22,19 @@ int main(int argc, char** argv) {
 
     // -------- Baseline: send an echo message --------
     // TODO: Replace this to build and send your PT time message.
+    time_t now = time(NULL);
+    struct tm* local_tm = localtime(&now);
+    if (!local_tm) {
+        fprintf(stderr, "localtime failed\n");
+        goto cleanup;
+    }
+    int utc_offset = (local_tm->tm_isdst > 0) ? -420 : -480;  // PT: UTC-8 or UTC-7
+    
     char line[MAX_LINE];
-    proto_build_client_message(line, sizeof line);
+    if (proto_format_pt(line, sizeof line, local_tm, utc_offset) < 0) {
+        fprintf(stderr, "format PT failed\n");
+        goto cleanup;
+    }
     if (tls_send_line(&ssl, line) < 0) {
         fprintf(stderr, "send failed\n");
         goto cleanup;
@@ -36,7 +47,7 @@ int main(int argc, char** argv) {
 
     // -------- Baseline: print the echoed content --------
     // TODO: Replace this to parse ET message and print readable ET time + offset.
-    printf("Server replied: %s\n", resp);
+    printf("%s\n", resp);
 
 cleanup:
     mbedtls_ssl_close_notify(&ssl);
